@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Show All Items</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f6f8fa;
+            color: #333;
+        }
+
+        h1, h2 {
+            font-weight: normal;
+            color: #444;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        table, th, td {
+            border: 1px solid #d1d5da;
+        }
+
+        th, td {
+            padding: 10px 15px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #e8eaf0;
+            color: #555;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f1f3f5;
+        }
+
+        tr:hover {
+            background-color: #e4e6e8;
+        }
+
+        button {
+            padding: 7px 15px;
+            font-size: 14px;
+            border: none;
+            background-color: rgb(177, 177, 177);
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin: 0 5px;
+        }
+
+        button:hover {
+            background-color: #34495e;
+        }
+
+        #add-config-section {
+            background-color: #ffffff;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            border: 1px solid #d1d5da;
+        }
+
+        #add-config-section input {
+            padding: 8px;
+            font-size: 14px;
+            border-radius: 4px;
+            border: 1px solid #d1d5da;
+            margin-right: 10px;
+        }
+
+        #cancel-config {
+            background-color: #FF5733;
+            color: #FFF;
+            margin-left: 10px;
+        }
+
+        #title-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        #add-config-btn {
+            background-color: #4CAF50;
+            color: #FFF;
+        }
+    </style>
+</head>
+<body>
+
+<div id="title-container">
+    <h1>Config List</h1>
+    <button id="add-config-btn">Add Config</button>
+</div>
+
+<!-- 添加配置区域 -->
+<div id="add-config-section" style="display: none;">
+    <input type="text" id="new-label" placeholder="Enter new label"/>
+    <input type="text" id="new-secret" placeholder="Enter new secret"/>
+    <button id="save-config">Save</button>
+    <button id="cancel-config">Cancel</button> <!-- 新增的取消按钮 -->
+</div>
+
+<div id="toast"
+     style="display: none; position: fixed; bottom: 10%; left: 50%; transform: translateX(-50%); background-color: #333; color: #fff; padding: 10px 20px; border-radius: 4px; z-index: 1000;">
+    Your message here
+</div>
+
+<table id="config-table">
+    <thead>
+    <tr>
+        <th>Label</th>
+        <th>secret</th>
+        <th>Actions</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- 这里的行将使用JavaScript动态生成 -->
+    </tbody>
+</table>
+
+<!--这下面的js感觉有问题，写的不太好-->
+<script>
+    const {ipcRenderer} = require('electron');
+
+    document.addEventListener('DOMContentLoaded', () => {
+        ipcRenderer.send('request-config-list');
+    });
+
+    ipcRenderer.on('config-list', (event, configs) => {
+        const tableBody = document.querySelector('#config-table tbody');
+
+        // 清空现有的行
+        tableBody.innerHTML = '';
+
+        configs.forEach(config => {
+            const tr = document.createElement('tr');
+
+            // Label
+            const tdLabel = createEditableCell(config.label, 'label', config);
+            tdLabel.textContent = config.label;
+            tr.appendChild(tdLabel);
+
+            // Secret
+            const tdSecret = createEditableCell(config.secret, 'secret', config);
+            tdSecret.textContent = config.secret;
+            tr.appendChild(tdSecret);
+
+            // Actions
+            const tdActions = document.createElement('td');
+
+            const getCodeBtn = document.createElement('button');
+            getCodeBtn.classList.add('get-code');
+            getCodeBtn.setAttribute('data-label', config.label);
+            getCodeBtn.setAttribute('data-secret', config.secret);
+            getCodeBtn.textContent = 'Get Code';
+            getCodeBtn.addEventListener('click', () => {
+                ipcRenderer.send('get-code-request', config.secret);
+            });
+            tdActions.appendChild(getCodeBtn);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.classList.add('delete-config');
+            deleteBtn.setAttribute('data-label', config.label);
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', () => {
+                ipcRenderer.send('delete-config-request', config);
+            });
+            tdActions.appendChild(deleteBtn);
+            tr.appendChild(tdActions);
+
+            tableBody.appendChild(tr);
+        });
+    });
+
+    ipcRenderer.on('code-response', (event, code) => {
+        // showNotification(`Code for selected item: ${code}`);
+    });
+
+    window.onerror = function (message, source, lineno, colno, error) {
+        alert(`${message}\nAt: ${source}:${lineno}:${colno}`);
+        return true; // prevents browser's default error handling
+    }
+
+    document.addEventListener('click', (e) => {
+        if (e.target && e.target.classList.contains('delete-config')) {
+            const labelToDelete = e.target.getAttribute('data-label');
+            const confirmation = confirm(`Are you sure you want to delete ${labelToDelete}?`);
+            if (confirmation) {
+                ipcRenderer.send('delete-config', labelToDelete);
+            }
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target && e.target.classList.contains('get-code')) {
+            const secret = e.target.getAttribute('data-secret');
+            ipcRenderer.send('get-code', secret);
+        }
+    });
+
+    function createEditableCell(content, type, config) {
+        const td = document.createElement('td');
+        td.textContent = content;
+        td.addEventListener('dblclick', function () {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = td.textContent;
+            td.textContent = '';
+            td.appendChild(input);
+            input.focus();
+
+            // 监听失去焦点事件
+            input.addEventListener('blur', function () {
+                saveAndReplaceInput(td, input, type, config);
+            });
+
+            // 监听键盘事件以获取回车键
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    saveAndReplaceInput(td, input, type, config);
+                }
+            });
+        });
+        return td;
+    }
+
+    function saveAndReplaceInput(td, input, type, config) {
+        const newValue = input.value;
+        let updateData;
+        if (type === 'label') {
+            updateData = {
+                oldLabel: config.label,
+                newLabel: newValue,
+                newSecret: config.secret
+            };
+        } else if (type === 'secret') {
+            updateData = {
+                oldLabel: config.label,
+                newLabel: config.label,
+                newSecret: newValue
+            };
+        }
+        config.label = newValue; // 更新config对象
+        ipcRenderer.send('update-config', updateData);
+        td.textContent = newValue;
+        input.remove();
+    }
+
+    document.getElementById('add-config-btn').addEventListener('click', function () {
+        // 显示添加配置区域并隐藏添加按钮
+        document.getElementById('add-config-section').style.display = 'block';
+        this.style.display = 'none';
+    });
+
+    document.getElementById('save-config').addEventListener('click', function () {
+        const newLabel = document.getElementById('new-label').value;
+        const newSecret = document.getElementById('new-secret').value;
+
+        if (newLabel && newSecret) {
+            ipcRenderer.send('add-config', {label: newLabel, secret: newSecret});
+
+            // 清除输入框（我们稍后会在成功添加后隐藏添加配置区域）
+            document.getElementById('new-label').value = '';
+            document.getElementById('new-secret').value = '';
+        } else {
+            alert("Please fill in both fields!");
+        }
+    });
+
+    ipcRenderer.on('add-config-error', (event, message) => {
+        alert(message);  // 或其他您想要的错误提示方式
+    });
+
+    ipcRenderer.on('add-config-reply', (event, message) => {
+        if (message === 'Config added successfully.') {
+            // 隐藏添加配置区域并显示添加按钮
+            document.getElementById('add-config-section').style.display = 'none';
+            document.getElementById('add-config-btn').style.display = 'block';
+            alert(message); // Optionally notify the user that the config was added successfully
+        }
+    });
+
+    document.getElementById('cancel-config').addEventListener('click', function () {
+        // 隐藏添加配置区域并显示添加按钮
+        document.getElementById('add-config-section').style.display = 'none';
+        document.getElementById('add-config-btn').style.display = 'block';
+    });
+
+</script>
+</body>
+</html>
+
+

@@ -1,0 +1,31 @@
+{
+  "name": "code",
+  "version": "1.0.0",
+  "description": "动态验证",
+  "main": "main.js",
+  "build": {
+    "appId": "com.cx.auth",
+    "mac": {
+      "icon": "520459.icns",
+      "entitlements": "./entitlements.plist",
+      "entitlementsInherit": "./entitlements.plist"
+    }
+  },
+  "author": "chengxin",
+  "license": "ISC",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "crypto-js": "^4.1.1",
+    "electron-native-notification": "^1.2.1",
+    "node-notifier": "^10.0.1",
+    "sortablejs": "^1.15.0",
+    "thirty-two": "^1.0.2"
+  },
+  "devDependencies": {
+    "electron": "^25.3.0",
+    "electron-builder": "^24.4.0"
+  }
+}
