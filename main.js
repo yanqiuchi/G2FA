@@ -203,7 +203,7 @@ ipcMain.on('get-code', (event, labelToGetCode) => {
 // ---------------------------------------
 
 app.whenReady().then(() => {
-    tray = new Tray(path.join(__dirname, 'loading.png'));
+    tray = new Tray(path.join(__dirname, 'loadingTemplate.png'));
     checkConfigFile();
     loadConfig();
 });
